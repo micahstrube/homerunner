@@ -1,0 +1,3 @@
+graft homerunner/templates
+graft homerunner/static
+include homerunner/schema.sql

@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block body %}
+    <br/>
+    <h2>Teams: </h2>
+    <dl class="teams">
+    {% for team in teams %}
+        <dt><h2><a href="{{ url_for('team', team_id=team.id) }}">{{ team.name }}, {{ team.id }}</a></h2>
+        {% for player in players %}
+            {% if player.team_id == team.id %}
+                <dd>{{ player.name }}
+            {% endif %}
+        {% else %}
+            <dt><em>No players on this team.</em>
+        {% endfor %}
+    {% else %}
+        <dt><em>No teams currently exist.</em>
+    {% endfor %}
+    </dl>
+
+    <br/><br/>
+    <form action="{{ url_for('add_team') }}" method="post" class="add-team">
+        <h2>Add New Team</h2>
+        <dl>
+            <dt>Team name:
+            <dd><input type="text" size="30" name="team_name">
+            <dd><input type="submit" value="Add">
+        </dl>
+    </form>
+{% endblock %}
