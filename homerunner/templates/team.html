@@ -3,12 +3,12 @@
     <br/>
     <div class="back-link"><a href="{{ url_for('show_teams') }}"><< Back to teams</a></div>
     <br/>
-    <h2>Team {{ team.name }} {{ team.id }}</h2>
+    <h2>Team {{ team.name }}</h2>
     <dl class="players">
     {% for player in players %}
-        <dt>{{ player.name }}
+        <dt>{{ player.name }}: {{ player.home_runs }} home runs</dt>
     {% else %}
-        <dt><em>No players are currently on this team.</em>
+        <dt><em>No players are currently on this team.</em></dt>
     {% endfor %}
     </dl>
 

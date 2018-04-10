@@ -5,16 +5,22 @@ h1              { border-bottom: 2px solid #eee; }
 h2              { font-size: 1.2em; }
 
 .page           { margin: 2em auto; width: 35em; border: 5px solid #ccc;
-                  padding: 0.8em; background: white; }
-.back-link    { font-size: 0.7em; }
-.teams        { list-style: none; margin: 0; padding: 0; }
-.teams li     { margin: 0.8em 1.2em; }
-.teams li h2  { margin-left: -1em; }
+                  padding: 0.8em; background: white; }99a8c1
+.back-link      { font-size: 0.7em; }
+.leaderboard table {   }
+.leaderboard th    { font-size: 1em; font-weight:bold; border-bottom: 2px solid #ccc; padding: 7px;  }
+.leaderboard tr:nth-child(even)    { background-color: #eee; }
+.leaderboard-team  { font-size: 0.9em; text-align: center; border-bottom: 1px solid #ccc; padding: 4px}
+.leaderboard-score { font-size: 0.9em; text-align: center; border-bottom: 1px solid #ccc; }
+.teams          { list-style: none; margin: 0; padding: 0; }adbcd6
+.teams dt       { list-style: none; font-size: 0.95em; font-weight: bold; }
+.teams li       { margin: 0.8em 1.2em; }
+.teams li h2    { margin-left: -1em; }
 .players dt     { font-size: 0.8em; color: #000000; }
-.add-team      { font-size: 0.9em; border-bottom: 1px solid #ccc; }
-.add-team dl   { font-weight: bold; }
-.add-player      { font-size: 0.9em; border-bottom: 1px solid #ccc; }
-.add-player dl   { font-weight: bold; }
+.add-team       { font-size: 0.9em; border-bottom: 1px solid #ccc; }
+.add-team dl    { font-weight: bold; }
+.add-player     { font-size: 0.9em; border-bottom: 1px solid #ccc; }
+.add-player dl  { font-weight: bold; }
 .metanav        { text-align: right; font-size: 0.8em; padding: 0.3em;
                   margin-bottom: 1em; background: #fafafa; }
 .flash          { background: #cee5F5; padding: 0.5em;

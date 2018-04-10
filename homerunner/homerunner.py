@@ -19,14 +19,47 @@ app.config.from_envvar('HOMERUNNER SETTINGS', silent=True)
 
 
 @app.route('/')
+def show_dashboard():
+    """Show dashboard of ranked teams and scores"""
+    db = get_db()
+    cur = db.execute('select name, id, score from teams order by score desc')
+    ranked_teams = cur.fetchall()
+    return render_template('dashboard.html', ranked_teams=ranked_teams)
+
+
+@app.route('/teams')
 def show_teams():
     """Show menu of teams and players on teams"""
     db = get_db()
     cur = db.execute('select name, id from teams order by name')
     teams = cur.fetchall()
-    cur = db.execute('select name, id, team_id from players order by name')
+    cur = db.execute('select name, id, team_id, home_runs from players order by name')
     players = cur.fetchall()
     return render_template('show_teams.html', teams=teams, players=players)
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login form"""
+    error = None
+    if request.method == 'POST':
+        if request.form['username'] != app.config['USERNAME']:
+            error = 'Invalid username'
+        elif request.form['password'] != app.config['PASSWORD']:
+            error = 'Invalid password'
+        else:
+            session['logged_in'] = True
+            flash('Logged in as {user}.'.format(user=request.form['username']))
+            return redirect(url_for('show_dashboard'))
+    return render_template('login.html', error=error)
+
+
+@app.route('/logout')
+def logout():
+    """Logout, redirect to dashboard"""
+    session.pop('logged_in', None)
+    flash('You have logged out')
+    return redirect(url_for('show_dashboard'))
 
 
 @app.route('/add_team', methods=['POST'])
@@ -60,7 +93,6 @@ def add_player_to_team(team_id):
     db.commit()
     flash('{player} was successfully added to team {team}'.format(player=request.form['player_name'], team=team_id))
     return redirect(url_for('team', team_id=team_id))
-    #return redirect(url_for('show_teams'))
 
 
 def connect_db():

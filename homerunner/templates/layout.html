@@ -5,6 +5,17 @@
 <div class="page">
     <h1>HomeRunner</h1>
 
+    <div class=metanav>
+    {% if not session.logged_in %}
+        <a href="{{ url_for('login') }}">log in</a>
+    {% else %}
+        <a href="{{ url_for('show_dashboard') }}">home</a>&nbsp;
+        <a href="">manage my team</a>&nbsp;
+        <a href="{{ url_for('show_teams') }}">team rosters</a>&nbsp;
+        <a href="{{ url_for('logout') }}">log out</a>
+    {% endif %}
+    </div>
+
     {% for message in get_flashed_messages() %}
         <div class="flash">{{ message }}</div>
     {% endfor %}

@@ -2,18 +2,20 @@
 {% block body %}
     <br/>
     <h2>Teams: </h2>
+    <br/>
     <dl class="teams">
     {% for team in teams %}
-        <dt><h2><a href="{{ url_for('team', team_id=team.id) }}">{{ team.name }}, {{ team.id }}</a></h2>
+        <dt class="teams"><a href="{{ url_for('team', team_id=team.id) }}">{{ team.name }}</a></dt>
         {% for player in players %}
             {% if player.team_id == team.id %}
-                <dd>{{ player.name }}
+                <dd>{{ player.name }}</dd>
             {% endif %}
         {% else %}
-            <dt><em>No players on this team.</em>
+        <dt><em>No players on this team.</em></dt>
         {% endfor %}
+        <br/>
     {% else %}
-        <dt><em>No teams currently exist.</em>
+        <dt><em>No teams currently exist.</em></dt>
     {% endfor %}
     </dl>
 
