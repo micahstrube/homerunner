@@ -1,17 +1,11 @@
-drop table if exists all_players;
-create table all_players (
-  id integer primary key autoincrement,
-  player text not null,
-  home_runs integer not null default 0
-);
-
 drop table if exists players;
 create table players (
   id integer primary key autoincrement,
   name text not null,
-  team_id integer not null,
+  last_game_id text,
   home_runs integer not null default 0,
   is_substitute integer default 0,
+  team_id integer,
   foreign key(team_id) references teams(id)
 );
 

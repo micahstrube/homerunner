@@ -2,6 +2,8 @@
 
 import os
 import sqlite3
+from .dailystats import todays_home_runs, todays_games
+
 
 from flask import Flask, request, session, g, redirect, url_for, abort, \
     render_template, flash
@@ -22,14 +24,26 @@ app.config.from_envvar('HOMERUNNER SETTINGS', silent=True)
 def show_dashboard():
     """Show dashboard of ranked teams and scores"""
     db = get_db()
+    cur = db.execute('select id from teams')
+    ranked_teams = cur.fetchall()
+    for team in ranked_teams:
+        cur = db.execute('select SUM(home_runs) from players where team_id = ?', [team['id']])
+        score = cur.fetchone()[0]
+        print("Score: {score}".format(score=score))
+        db.execute('update teams set score = ? where id = ?', [score, team['id']])
+        db.commit()
+
     cur = db.execute('select name, id, score from teams order by score desc')
     ranked_teams = cur.fetchall()
+
     return render_template('dashboard.html', ranked_teams=ranked_teams)
 
 
 @app.route('/teams')
 def show_teams():
     """Show menu of teams and players on teams"""
+    update_player_home_runs()
+
     db = get_db()
     cur = db.execute('select name, id from teams order by name')
     teams = cur.fetchall()
@@ -88,11 +102,39 @@ def team(team_id):
 def add_player_to_team(team_id):
     """Add player to specified team"""
     db = get_db()
-    db.execute('insert into players (name, team_id) values (?, ?)',
-               [request.form['player_name'], team_id])
-    db.commit()
+    cur = db.execute('select id from players where name = ?', [request.form['player_name']])
+    player = cur.fetchone()
+    if player is not None:
+        db.execute('update players set team_id = ? where id = ?', [team_id, player['id']])
+        db.commit()
+    else:
+        db.execute('insert into players (name, team_id) values (?, ?)',
+                   [request.form['player_name'], team_id])
+        db.commit()
     flash('{player} was successfully added to team {team}'.format(player=request.form['player_name'], team=team_id))
     return redirect(url_for('team', team_id=team_id))
+
+
+def update_player_home_runs():
+    """Update database with latest player home runs"""
+    todays_home_runs_dict = todays_home_runs(todays_games())
+    db = get_db()
+    for player in todays_home_runs_dict:
+        cur = db.execute('select home_runs, id, last_game_id from players where name=?', [player])
+        db_player = cur.fetchone()
+        # If player found, update, otherwise insert
+        if db_player == None:
+            db.execute('insert into players (name, home_runs, last_game_id) values (?, ?, ?)',
+                       [player, todays_home_runs_dict[player]['home_runs'], todays_home_runs_dict[player]['game_id']])
+            db.commit()
+        else:
+            # If the last game id put in the database for this player is the same as
+            # the current game id, then do nothing, otherwise we would re-count already counted home runs
+            if db_player['last_game_id'] != todays_home_runs_dict[player]['game_id']:
+                total_home_runs = db_player['home_runs'] + todays_home_runs_dict[player]['home_runs']
+                db.execute('update players set home_runs = ?, last_game_id = ? where id = ?',
+                           [total_home_runs, todays_home_runs_dict[player]['game_id'], db_player['id']])
+                db.commit()
 
 
 def connect_db():
