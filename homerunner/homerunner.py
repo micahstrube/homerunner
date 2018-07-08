@@ -1,10 +1,8 @@
-# all the imports
-
 import os
 import sqlite3
-#from .dailystats import todays_home_runs, todays_games
-from .player_stats import get_all_players_stats
-
+import textwrap
+from time import sleep
+from .player_stats import get_all_players_home_runs, update_player_database
 
 from flask import Flask, request, session, g, redirect, url_for, abort, \
     render_template, flash
@@ -13,10 +11,12 @@ app = Flask(__name__) # create the application instance
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
-    DATABASE = os.path.join(app.root_path, 'homerunner.db'),
+    DATABASE=os.path.join(app.root_path, 'homerunner.db'),
     SECRET_KEY='development key',
     USERNAME='admin',
-    PASSWORD='default'
+    PASSWORD='default',
+    STATS_SCRAPE_INTERVAL=60, # How often scrape requests are sent to 3rd party site
+                              # to update players home runs
 ))
 app.config.from_envvar('HOMERUNNER SETTINGS', silent=True)
 
@@ -42,17 +42,25 @@ def show_dashboard():
 
 @app.route('/teams')
 def show_teams():
-    # TODO: In show_teams.html, do math to calculate team score
-
     """Show menu of teams and players on teams"""
-    update_player_home_runs()
-
     db = get_db()
+    cur = db.execute(textwrap.dedent("""\
+      select name, team_id, home_runs from players 
+      where team_id is not null
+      """))
+    players = cur.fetchall()
     cur = db.execute('select name, id from teams order by name')
     teams = cur.fetchall()
-    cur = db.execute('select name, id, team_id, home_runs from players order by name')
-    players = cur.fetchall()
-    return render_template('show_teams.html', teams=teams, players=players)
+    cur = db.execute(textwrap.dedent("""\
+      select teams.id as id,
+      teams.name as name,
+      SUM(players.home_runs) as score
+      from teams inner join players on teams.id=players.team_id
+      group by teams.id
+      """))
+    team_scores = cur.fetchall()
+
+    return render_template('show_teams.html', players=players, teams=teams, team_scores=team_scores)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -121,26 +129,6 @@ def add_player_to_team(team_id):
     return redirect(url_for('team', team_id=team_id))
 
 
-def update_player_home_runs():
-    """Update database with latest player home runs"""
-    players_stats = get_all_players_stats()
-
-    #todays_home_runs_dict = todays_home_runs(todays_games())
-    db = get_db()
-    for player in players_stats:
-        cur = db.execute('select home_runs, id from players where name=?', [player])
-        db_player = cur.fetchone()
-        # If player found, update, otherwise insert
-        if db_player == None:
-            db.execute('insert into players (name, home_runs) values (?, ?)',
-                       [player, players_stats[player]])
-            db.commit()
-        else:
-            db.execute('update players set home_runs = ? where name = ?',
-                       [players_stats[player], player])
-            db.commit()
-
-
 def connect_db():
     """Connects to the specified database."""
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -154,6 +142,20 @@ def init_db():
     with app.open_resource('schema.sql', mode='r') as f:
         db.cursor().executescript(f.read())
     db.commit()
+
+
+@app.cli.command('initscraper')
+def initscraper_cmmand():
+    """Launches the scraper process to continually update the players
+    home runs count"""
+    app.logger.info('Starting stats scraper.')
+    scrape_interval = app.config['STATS_SCRAPE_INTERVAL']
+    app.logger.debug('STATS_SCRAPE_INTERVAL=%s' % scrape_interval)
+    db = get_db()
+    while True:
+        update_player_database(db, get_all_players_home_runs())
+        app.logger.info('Retrieved latest player stats and updated database.')
+        sleep(scrape_interval)
 
 
 @app.cli.command('initdb')

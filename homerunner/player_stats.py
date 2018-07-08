@@ -1,15 +1,22 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import re
-#import pyperclip
+import sqlite3
 
-STATS_URL="https://www.fangraphs.com/leaders.aspx?pos=all&stats=bat&lg=all&qual=0&type=8&season=2018&month=0&season1=2018&ind=0&team=0&rost=0&age=0&filter=&players=0&page=1_2000"
+from flask import Flask
 
-def get_all_players_stats():
+app = Flask(__name__) # create the application instance
+
+app.config['STATS_URL'] = "https://www.fangraphs.com/leaders.aspx?pos=all&stats=bat&lg=all&qual=0&type=8&season=2018&month=0&season1=2018&ind=0&team=0&rost=0&age=0&filter=&players=0&page=1_2000"
+
+def get_all_players_home_runs():
+    """Scrape current home runs count for all player from STATS_URL"""
+    stats_url = app.config['STATS_URL']
     players_home_runs = {}
 
     # Get FanGraphs page with player stats
-    response = urlopen(STATS_URL)
+    app.logger.info('Retrieving stats from STATS_URL')
+    response = urlopen(stats_url)
     # Create html parser and grab all the players stats rows
     # Each <tr> has an id of "LeaderBoard1_dg1_ct100__###" where ### is a 3 digit number for the row number
     soup = BeautifulSoup(response, 'html.parser')
@@ -23,17 +30,39 @@ def get_all_players_stats():
         players_home_runs[player_name] = player_home_runs
     return players_home_runs
 
-'''
-player_stats = get_all_players_stats()
-output = ""
-with open("players.txt", "r") as f:
-    for player in f:
-        player = player[:-1]
-        if player in player_stats:
-            print("%s: %s" % (player, player_stats[player]))
-            output += "{player},{hr}\n".format(player=player, hr=player_stats[player])
+def update_player_database(db, players_stats):
+    """Update database with latest player home runs"""
+    for player in players_stats:
+        cur = db.execute('select home_runs, id from players where name=?', [player])
+        db_player = cur.fetchone()
+        # If player found, update, otherwise insert
+        if db_player == None:
+            db.execute('insert into players (name, home_runs) values (?, ?)',
+                       [player, players_stats[player]])
         else:
-            output += "{player},0\n".format(player=player)
+            db.execute('update players set home_runs = ? where name = ?',
+                       [players_stats[player], player])
+        db.commit()
 
-pyperclip.copy(output)
-'''
+def connect_db():
+    """Connects to the specified database."""
+    rv = sqlite3.connect(app.config['DATABASE'])
+    rv.row_factory = sqlite3.Row
+    return rv
+
+
+def init_db():
+    """Initializees the database."""
+    db = get_db()
+    with app.open_resource('schema.sql', mode='r') as f:
+        db.cursor().executescript(f.read())
+    db.commit()
+
+def get_db():
+    """Opens a new database connection if there is none yet for the current
+    application context.
+    """
+    if not hasattr(g, 'sqlite_db'):
+        g.sqlite_db = connect_db()
+    return g.sqlite_db
+

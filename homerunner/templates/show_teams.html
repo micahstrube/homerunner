@@ -4,11 +4,11 @@
     <h2>Teams: </h2>
     <br/>
     <dl class="teams">
-    {% for team in teams %}
-        <dt class="teams"><a href="{{ url_for('team', team_id=team.id) }}">{{ team.name }}</a></dt>
+    {% for team in team_scores %}
+        <dt class="teams"><a href="{{ url_for('team', team_id=team.id) }}">{{ team.name }}: {{ team.score }}</a></dt>
         {% for player in players %}
             {% if player.team_id == team.id %}
-                <dd>{{ player.name }}</dd>
+                <dd>{{ player.name }}: {{  player.home_runs }}</dd>
             {% endif %}
         {% else %}
         <dt><em>No players on this team.</em></dt>
