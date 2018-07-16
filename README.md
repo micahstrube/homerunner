@@ -8,4 +8,4 @@ To get started:
 - export FLASK_ENV=development
 - first time only: flask initdb
 - flask initscraper
-- flask run
+- python homerunner.py
