@@ -7,5 +7,5 @@ To get started:
 - export FLASK_APP=homerunner.py
 - export FLASK_ENV=development
 - first time only: flask initdb
-- flask initscraper
+- flask scraper
 - flask run
