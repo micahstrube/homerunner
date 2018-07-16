@@ -226,7 +226,7 @@ def init_db():
     db.commit()
 
 
-@app.cli.command('initscraper')
+@app.cli.command('scraper')
 def initscraper_cmmand():
     """Launches the scraper process to continually update the players
     home runs count
