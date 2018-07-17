@@ -16,8 +16,3 @@ create table teams (
   score integer not null default 0
 )
 
-drop table if exists users;
-create table users (
-  id integer primary key autoincrement,
-  google_id text not null,
-)
