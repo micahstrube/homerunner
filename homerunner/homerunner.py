@@ -28,6 +28,22 @@ OAUTH_SCOPES = ['openid', 'profile', 'email']
 @app.route('/')
 def show_dashboard():
     """Show dashboard of ranked teams and scores"""
+    # If user not logged in, redirect to auth35ddd
+    if 'credentials' not in flask.session:
+        return flask.redirect('auth')
+
+    # Load credentials from the session
+    credentials = google.oauth2.credentials.Credentials(
+        **flask.session['credentials']
+    )
+
+    # TODO: Get name from profile? Display user profile picture icon?
+
+    # Save credentials back to session in case access token was refreshed.
+    # TODO: In a production app, you likely want to save these
+    #       credentials in a persistent database instead.
+    flask.session['credentials'] = credentials_to_dict(credentials)
+
     db = get_db()
     cur = db.execute('select id from teams')
     ranked_teams = cur.fetchall()
@@ -103,10 +119,12 @@ def oauth2callback():
     flow.fetch_token(authorization_response=authorization_response)
 
     # Store credentials in the session.
-    # ACTION ITEM: In a production app, you likely want to save these
-    #              credentials in a persistent database instead.
+    # TODO: In a production app, you likely want to save these
+    #       credentials in a persistent database instead.
+    # TODO: Check database to see if user already exists, if not, add
     credentials = flow.credentials
     flask.session['credentials'] = credentials_to_dict(credentials)
+
 
     return flask.redirect(flask.url_for('show_teams'))
 
