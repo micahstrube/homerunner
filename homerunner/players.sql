@@ -8,11 +8,3 @@ create table players (
   team_id integer,
   foreign key(team_id) references teams(id)
 );
-
-drop table if exists teams;
-create table teams (
-  id integer primary key autoincrement,
-  name text not null,
-  score integer not null default 0
-)
-

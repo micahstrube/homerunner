@@ -3,8 +3,10 @@ import sqlite3
 import textwrap
 import google_auth_oauthlib.flow
 import google.oauth2.credentials
+import subprocess
 from time import sleep
-from player_stats import get_all_players_home_runs, update_player_database
+from utils.player_stats import get_all_players_home_runs, update_player_database
+#from player_stats import get_all_players_home_runs, update_player_database
 import flask
 #from flask import Flask, request, session, g, redirect, url_for, abort, \
 #    render_template, flash
@@ -238,14 +240,40 @@ def connect_db():
 
 def init_db():
     """Initializees the database."""
+    # TODO: THIS IS ERRORING.
     db = get_db()
-    with app.open_resource('schema.sql', mode='r') as f:
+    cur = db.execute('select name from sqlite_master where type="table"')
+    tables = cur.fetchall()
+    print(tables)
+
+    # Create each table if it doesn't already exist
+    if 'players' not in tables:
+        with app.open_resource('players.sql', mode='r') as f:
+            db.cursor().executescript(f.read())
+    else:
+        app.logger.info('Players table already exists.')
+    if 'teams' not in tables:
+        with app.open_resource('teams.sql', mode='r') as f:
+            db.cursor().executescript(f.read())
+    else:
+        app.logger.info('Teams table already exists.')
+    if 'users' not in tables:
+        with app.open_resource('users.sql', mode='r') as f:
+            db.cursor().executescript(f.read())
+    else:
+        app.logger.info('Users table already exists.')
+    with app.open_resource('users.sql', mode='r') as f:
         db.cursor().executescript(f.read())
+
     db.commit()
 
 
 @app.cli.command('scraper')
-def initscraper_cmmand():
+def scraper_command():
+    scraper()
+
+
+def scraper():
     """Launches the scraper process to continually update the players
     home runs count
     """
@@ -282,5 +310,8 @@ def close_db(error):
         flask.g.sqlite_db.close()
 
 
-if __name__ == "__main__":
-    app.run(ssl_context='adhoc')
+#if __name__ == "__main__":
+#    # This doesn't work. Need to init the db another way.
+#    init_db()
+#    #subprocess.run(scraper())
+#    app.run(ssl_context='adhoc')
