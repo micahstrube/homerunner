@@ -13,7 +13,12 @@ app.config.update(dict(
     PASSWORD='default',
     STATS_SCRAPE_INTERVAL=60, # How often scrape requests are sent to 3rd party site
     CLIENT_SECRETS_FILE="client_secrets.json",
-    OAUTH_SCOPES=['openid', 'profile', 'email']
+    OAUTH_SCOPES=[
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/plus.me'
+    ]
+    #OAUTH_SCOPES=['email', 'profile', 'openid']
     # to update players home runs
 ))
 app.config.from_envvar('HOMERUNNER SETTINGS', silent=True)

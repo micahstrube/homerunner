@@ -1,8 +1,8 @@
 import flask
-import os
 import textwrap
 import google_auth_oauthlib.flow
 import google.oauth2.credentials
+import requests
 from homerunner import app
 from homerunner.db_utils import get_db
 #from flask import Flask, request, session, g, redirect, url_for, abort, \
@@ -123,7 +123,7 @@ def revoke():
     credentials = google.oauth2.credentials.Credentials(
         **flask.session['credentials'])
 
-    revoke = flask.requests.post('https://accounts.google.com/o/oauth2/revoke',
+    revoke = requests.post('https://accounts.google.com/o/oauth2/revoke',
                                  params={'token': credentials.token},
                                  headers = {'content-type': 'application/x-www-form-urlencoded'})
 
