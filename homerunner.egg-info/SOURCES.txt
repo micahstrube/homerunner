@@ -2,8 +2,7 @@ MANIFEST.in
 setup.py
 homerunner/__init__.py
 homerunner/dailystats.py
-homerunner/homerunner.py
-homerunner/schema.sql
+homerunner/google_auth.py
 homerunner.egg-info/PKG-INFO
 homerunner.egg-info/SOURCES.txt
 homerunner.egg-info/dependency_links.txt

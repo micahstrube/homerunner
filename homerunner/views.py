@@ -1,33 +1,32 @@
+import flask
 import os
-import sqlite3
 import textwrap
 import google_auth_oauthlib.flow
 import google.oauth2.credentials
-from time import sleep
-from player_stats import get_all_players_home_runs, update_player_database
-import flask
+from homerunner import app
+from homerunner.db_utils import get_db
 #from flask import Flask, request, session, g, redirect, url_for, abort, \
 #    render_template, flash
-
-app = flask.Flask(__name__) # create the application instance
-
-# Load default config and override config from an environment variable
-app.config.update(dict(
-    DATABASE=os.path.join(app.root_path, 'homerunner.db'),
-    SECRET_KEY='development key',
-    USERNAME='admin',
-    PASSWORD='default',
-    STATS_SCRAPE_INTERVAL=60, # How often scrape requests are sent to 3rd party site
-                              # to update players home runs
-))
-app.config.from_envvar('HOMERUNNER SETTINGS', silent=True)
-
-CLIENT_SECRETS_FILE = "client_secret.json"
-OAUTH_SCOPES = ['openid', 'profile', 'email']
 
 @app.route('/')
 def show_dashboard():
     """Show dashboard of ranked teams and scores"""
+    # If user not logged in, redirect to auth35ddd
+    if 'credentials' not in flask.session:
+        return flask.redirect('auth')
+
+    # Load credentials from the session
+    credentials = google.oauth2.credentials.Credentials(
+        **flask.session['credentials']
+    )
+
+    # TODO: Get name from profile? Display user profile picture icon?
+
+    # Save credentials back to session in case access token was refreshed.
+    # TODO: In a production app, you likely want to save these
+    #       credentials in a persistent database instead.
+    flask.session['credentials'] = credentials_to_dict(credentials)
+
     db = get_db()
     cur = db.execute('select id from teams')
     ranked_teams = cur.fetchall()
@@ -71,7 +70,8 @@ def show_teams():
 def auth():
     # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow steps.
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE, scopes=OAUTH_SCOPES)
+        app.config['CLIENT_SECRETS_FILE'],
+        scopes=app.config['OAUTH_SCOPES'])
 
     flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
 
@@ -95,7 +95,8 @@ def oauth2callback():
     state = flask.session['state']
 
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE, scopes=OAUTH_SCOPES, state=state)
+        app.config['CLIENT_SECRETS_FILE'],
+        scopes=app.config['OAUTH_SCOPES'])
     flow.redirect_uri = flask.url_for('oauth2callback', _external=True)
 
     # Use the authorization server's response to fetch the OAuth 2.0 tokens.
@@ -103,39 +104,41 @@ def oauth2callback():
     flow.fetch_token(authorization_response=authorization_response)
 
     # Store credentials in the session.
-    # ACTION ITEM: In a production app, you likely want to save these
-    #              credentials in a persistent database instead.
+    # TODO: In a production app, you likely want to save these
+    #       credentials in a persistent database instead.
+    # TODO: Check database to see if user already exists, if not, add
     credentials = flow.credentials
     flask.session['credentials'] = credentials_to_dict(credentials)
+
 
     return flask.redirect(flask.url_for('show_teams'))
 
 
 @app.route('/revoke')
 def revoke():
-  if 'credentials' not in flask.session:
-    return ('You need to <a href="/authorize">authorize</a> before ' +
-            'testing the code to revoke credentials.')
+    if 'credentials' not in flask.session:
+        return ('You need to <a href="/authorize">authorize</a> before ' +
+                'testing the code to revoke credentials.')
 
-  credentials = google.oauth2.credentials.Credentials(
-    **flask.session['credentials'])
+    credentials = google.oauth2.credentials.Credentials(
+        **flask.session['credentials'])
 
-  revoke = flask.requests.post('https://accounts.google.com/o/oauth2/revoke',
-      params={'token': credentials.token},
-      headers = {'content-type': 'application/x-www-form-urlencoded'})
+    revoke = flask.requests.post('https://accounts.google.com/o/oauth2/revoke',
+                                 params={'token': credentials.token},
+                                 headers = {'content-type': 'application/x-www-form-urlencoded'})
 
-  status_code = getattr(revoke, 'status_code')
-  if status_code == 200:
-    return('Credentials successfully revoked.')
-  else:
-    return('An error occurred.')
+    status_code = getattr(revoke, 'status_code')
+    if status_code == 200:
+        return('Credentials successfully revoked.')
+    else:
+        return('An error occurred.')
 
 
 @app.route('/clear')
 def clear_credentials():
-  if 'credentials' in flask.session:
-    del flask.session['credentials']
-  return ('Credentials have been cleared.<br><br>')
+    if 'credentials' in flask.session:
+        del flask.session['credentials']
+    return ('Credentials have been cleared.<br><br>')
 
 def credentials_to_dict(credentials):
     return {'token': credentials.token,
@@ -174,7 +177,7 @@ def add_team():
     """Create new team"""
     db = get_db()
     db.execute('insert into teams (name) values (?)',
-               [flask.equest.form['team_name']])
+               [flask.request.form['team_name']])
     db.commit()
     flask.flash('New team {team} successfully created'.format(team=flask.request.form['team_name']))
     return flask.redirect(flask.url_for('show_teams'))
@@ -207,62 +210,13 @@ def add_player_to_team(team_id):
                    [flask.request.form['player_name'], team_id])
         db.commit()
     flask.flash('{player} was successfully added to team {team}'
-          .format(player=flask.request.form['player_name'], team=team_id))
+                .format(player=flask.request.form['player_name'], team=team_id))
     return flask.redirect(flask.url_for('team', team_id=team_id))
 
 
-def connect_db():
-    """Connects to the specified database."""
-    rv = sqlite3.connect(app.config['DATABASE'])
-    rv.row_factory = sqlite3.Row
-    return rv
 
-
-def init_db():
-    """Initializees the database."""
-    db = get_db()
-    with app.open_resource('schema.sql', mode='r') as f:
-        db.cursor().executescript(f.read())
-    db.commit()
-
-
-@app.cli.command('scraper')
-def initscraper_cmmand():
-    """Launches the scraper process to continually update the players
-    home runs count
-    """
-    app.logger.info('Starting stats scraper.')
-    scrape_interval = app.config['STATS_SCRAPE_INTERVAL']
-    app.logger.debug('STATS_SCRAPE_INTERVAL=%s' % scrape_interval)
-    db = get_db()
-    while True:
-        update_player_database(db, get_all_players_home_runs())
-        app.logger.info('Retrieved latest player stats and updated database.')
-        sleep(scrape_interval)
-
-
-@app.cli.command('initdb')
-def initdb_command():
-    """Adds CLI command to initialize the database."""
-    init_db()
-    print('Initialized the database.')
-
-
-def get_db():
-    """Opens a new database connection if there is none yet for the current
-    application context.
-    """
-    if not hasattr(flask.g, 'sqlite_db'):
-        flask.g.sqlite_db = connect_db()
-    return flask.g.sqlite_db
-
-
-@app.teardown_appcontext
-def close_db(error):
-    """Closes the database again at the end of the request."""
-    if hasattr(flask.g, 'sqlite_db'):
-        flask.g.sqlite_db.close()
-
-
-if __name__ == "__main__":
-    app.run(ssl_context='adhoc')
+#if __name__ == "__main__":
+#    # This doesn't work. Need to init the db another way.
+#    init_db()
+#    #subprocess.run(scraper())
+#    app.run(ssl_context='adhoc')
