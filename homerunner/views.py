@@ -214,9 +214,3 @@ def add_player_to_team(team_id):
     return flask.redirect(flask.url_for('team', team_id=team_id))
 
 
-
-#if __name__ == "__main__":
-#    # This doesn't work. Need to init the db another way.
-#    init_db()
-#    #subprocess.run(scraper())
-#    app.run(ssl_context='adhoc')
