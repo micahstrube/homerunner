@@ -1,14 +1,15 @@
 MANIFEST.in
 setup.py
 homerunner/__init__.py
-homerunner/views.py
-homerunner/dailystats.py
+homerunner/auth.py
 homerunner/cli_commands.py
+homerunner/dailystats.py
 homerunner/db_utils.py
 homerunner/google_auth.py
 homerunner/players.sql
 homerunner/teams.sql
 homerunner/users.sql
+homerunner/views.py
 homerunner.egg-info/PKG-INFO
 homerunner.egg-info/SOURCES.txt
 homerunner.egg-info/dependency_links.txt

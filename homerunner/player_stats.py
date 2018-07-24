@@ -1,11 +1,8 @@
+import re
+import flask
+from homerunner import app, db_utils
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
-import re
-import sqlite3
-
-from flask import Flask
-
-app = Flask(__name__) # create the application instance
 
 app.config['STATS_URL'] = "https://www.fangraphs.com/leaders.aspx?pos=all&stats=bat&lg=all&qual=0&type=8&season=2018&month=0&season1=2018&ind=0&team=0&rost=0&age=0&filter=&players=0&page=1_2000"
 
@@ -43,26 +40,4 @@ def update_player_database(db, players_stats):
             db.execute('update players set home_runs = ? where name = ?',
                        [players_stats[player], player])
         db.commit()
-
-def connect_db():
-    """Connects to the specified database."""
-    rv = sqlite3.connect(app.config['DATABASE'])
-    rv.row_factory = sqlite3.Row
-    return rv
-
-
-def init_db():
-    """Initializees the database."""
-    db = get_db()
-    with app.open_resource('players.sql', mode='r') as f:
-        db.cursor().executescript(f.read())
-    db.commit()
-
-def get_db():
-    """Opens a new database connection if there is none yet for the current
-    application context.
-    """
-    if not hasattr(g, 'sqlite_db'):
-        g.sqlite_db = connect_db()
-    return g.sqlite_db
 
