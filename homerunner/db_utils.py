@@ -1,6 +1,7 @@
 import flask
 import sqlite3
 from homerunner import app
+import textwrap
 
 def init_db():
     """Initializees the database."""
@@ -57,4 +58,37 @@ def close_db(error):
     """Closes the database again at the end of the request."""
     if hasattr(flask.g, 'sqlite_db'):
         flask.g.sqlite_db.close()
+
+
+def user_exists(google_id):
+    """
+    Check if the specified google user exists in our database.
+
+    :param google_id: User's google id
+    :return: True if user exists in database, False if user does not exist.
+    """
+    db = get_db()
+    cur = db.execute('select google_id from users where google_id = ?', [google_id])
+    if cur.fetchone() is not None:
+        return True
+    return False
+
+
+def create_user(google_id, google_email, name, picture_url, receive_notifications=True):
+    """
+    Check if specified google user exists in our database. If not, add them.
+
+    :param google_id: User's google id
+    :param google_email: User's google email address
+    :param name: User's name
+    :param receive_notifications: Whether the user opted in for email notifications.
+    """
+    if not user_exists(google_id):
+        db = get_db()
+        db.execute(textwrap.dedent("""\
+            insert into users (google_id, email, name, picture_url, receive_email)
+            values (?, ?, ?, ?, ?);
+            """), [google_id, google_email, name, picture_url, receive_notifications])
+    else:
+        return None
 

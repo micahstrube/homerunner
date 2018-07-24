@@ -4,7 +4,8 @@ import google_auth_oauthlib.flow
 import google.oauth2.credentials
 import requests
 from homerunner import app
-from homerunner.db_utils import get_db
+from homerunner.db_utils import get_db, user_exists, create_user
+from homerunner.auth import get_user_google_account_info, credentials_to_dict
 #from flask import Flask, request, session, g, redirect, url_for, abort, \
 #    render_template, flash
 
@@ -14,13 +15,10 @@ def show_dashboard():
     # If user not logged in, redirect to auth35ddd
     if 'credentials' not in flask.session:
         return flask.redirect('auth')
-
-    # Load credentials from the session
+    flask.session['logged_in'] = True
+    # Refresh credentials from the session.
     credentials = google.oauth2.credentials.Credentials(
-        **flask.session['credentials']
-    )
-
-    # TODO: Get name from profile? Display user profile picture icon?
+        **flask.session['credentials'])
 
     # Save credentials back to session in case access token was refreshed.
     # TODO: In a production app, you likely want to save these
@@ -40,12 +38,23 @@ def show_dashboard():
     cur = db.execute('select name, id, score from teams order by score desc')
     ranked_teams = cur.fetchall()
 
-    return flask.render_template('dashboard.html', ranked_teams=ranked_teams)
+    return flask.render_template('dashboard.html',
+                                 ranked_teams=ranked_teams,
+                                 picture_url=flask.session['picture_url'])
 
 
 @app.route('/teams')
 def show_teams():
     """Show menu of teams and players on teams"""
+    if 'credentials' not in flask.session:
+        return flask.redirect('auth')
+    flask.session['logged_in'] = True
+    # Refresh credentials from the session.
+    credentials = google.oauth2.credentials.Credentials(
+        **flask.session['credentials'])
+
+    picture_url = flask.session['picture_url']
+
     db = get_db()
     cur = db.execute(textwrap.dedent("""\
       select name, team_id, home_runs from players 
@@ -63,7 +72,11 @@ def show_teams():
       """))
     team_scores = cur.fetchall()
 
-    return flask.render_template('show_teams.html', players=players, teams=teams, team_scores=team_scores)
+    return flask.render_template('show_teams.html',
+                                 picture_url=picture_url,
+                                 players=players,
+                                 teams=teams,
+                                 team_scores=team_scores)
 
 
 @app.route('/auth')
@@ -110,6 +123,20 @@ def oauth2callback():
     credentials = flow.credentials
     flask.session['credentials'] = credentials_to_dict(credentials)
 
+    # Get user's google account info and add it to session
+    google_id, email, name, picture_url = get_user_google_account_info()
+    flask.session.update(google_id=google_id,
+                         email=email,
+                         name=name,
+                         picture_url=picture_url)
+    # If user does not exist in our database, add them
+    if not user_exists(google_id):
+        # TODO: Future code to redirect to signup page?
+        create_user(google_id=google_id,
+                    google_email=email,
+                    name=name,
+                    picture_url=picture_url,
+                    receive_notifications=True)
 
     return flask.redirect(flask.url_for('show_teams'))
 
@@ -140,13 +167,6 @@ def clear_credentials():
         del flask.session['credentials']
     return ('Credentials have been cleared.<br><br>')
 
-def credentials_to_dict(credentials):
-    return {'token': credentials.token,
-            'refresh_token': credentials.refresh_token,
-            'token_uri': credentials.token_uri,
-            'client_id': credentials.client_id,
-            'client_secret': credentials.client_secret,
-            'scopes': credentials.scopes}
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -186,17 +206,31 @@ def add_team():
 @app.route('/team/<team_id>')
 def team(team_id):
     """Page for team details and editing team"""
+    if 'credentials' not in flask.session:
+        return flask.redirect('auth')
+    flask.session['logged_in'] = True
+    # Refresh credentials from the session.
+    credentials = google.oauth2.credentials.Credentials(
+        **flask.session['credentials'])
     db = get_db()
     cur = db.execute('select name, id from teams where id=?', [team_id])
     team = cur.fetchone()
     cur = db.execute('select name, id, home_runs from players where team_id=(?)', [team_id])
     players = cur.fetchall()
-    return flask.render_template('team.html', team=team, players=players)
+    return flask.render_template('team.html',
+                                 picture_url=flask.session['picture_url'],
+                                 team=team,
+                                 players=players)
 
 
 @app.route('/team/<team_id>/add_player', methods=['POST'])
 def add_player_to_team(team_id):
     """Add player to specified team"""
+    flask.session['logged_in'] = True
+    # Refresh credentials from the session.
+    credentials = google.oauth2.credentials.Credentials(
+        **flask.session['credentials'])
+
     db = get_db()
     cur = db.execute('select id from players where name = ?',
                      [flask.request.form['player_name']])
@@ -211,6 +245,8 @@ def add_player_to_team(team_id):
         db.commit()
     flask.flash('{player} was successfully added to team {team}'
                 .format(player=flask.request.form['player_name'], team=team_id))
-    return flask.redirect(flask.url_for('team', team_id=team_id))
+    return flask.redirect(flask.url_for('team',
+                                        picture_url=flask.session['picture_url'],
+                                        team_id=team_id))
 
 
