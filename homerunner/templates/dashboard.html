@@ -1,20 +1,21 @@
 {% extends "layout.html" %}
 {% block body %}
     <br/>
-    {% if session.logged_in %}
-    <form
-    {% endif %}
     <br/>
-    <h2>Season Leaderboard: </h2>
+    {% if not session.logged_in %}
+        <a href="{{ url_for('auth') }}">Log in with Google account</a>
+    {%  else %}
+        <h2>Season Leaderboard: </h2>
 
-    <table class="leaderboard">
-        <th class="leaderboard">Team</th><th class="leaderboard">Score</th>
-        {% for team in ranked_teams %}
-        <tr class="leaderboard">
-            <td class="leaderboard-team">{{ team.name }}</td><td class="leaderboard-score">{{ team.score }}</td>
-        </tr>
-        {% else %}
-        <tr><td>No teams exist.</td></tr>
-        {% endfor %}
-    </table>
+        <table class="leaderboard">
+            <th class="leaderboard">Team</th><th class="leaderboard">Score</th>
+            {% for team in ranked_teams %}
+            <tr class="leaderboard">
+                <td class="leaderboard-team">{{ team.name }}</td><td class="leaderboard-score">{{ team.score }}</td>
+            </tr>
+            {% else %}
+            <tr><td>No teams exist.</td></tr>
+            {% endfor %}
+        </table>
+    {% endif %}
 {% endblock %}

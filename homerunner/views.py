@@ -46,9 +46,9 @@ def show_dashboard():
 @app.route('/teams')
 def show_teams():
     """Show menu of teams and players on teams"""
-    if 'credentials' not in flask.session:
-        return flask.redirect('auth')
-    flask.session['logged_in'] = True
+    #if 'credentials' not in flask.session:
+    #    return flask.redirect('auth')
+    #flask.session['logged_in'] = True
     # Refresh credentials from the session.
     credentials = google.oauth2.credentials.Credentials(
         **flask.session['credentials'])
@@ -128,7 +128,8 @@ def oauth2callback():
     flask.session.update(google_id=google_id,
                          email=email,
                          name=name,
-                         picture_url=picture_url)
+                         picture_url=picture_url,
+                         logged_in=True)
     # If user does not exist in our database, add them
     if not user_exists(google_id):
         # TODO: Future code to redirect to signup page?
@@ -187,9 +188,10 @@ def login():
 @app.route('/logout')
 def logout():
     """Logout, redirect to dashboard"""
-    app.session.pop('logged_in', None)
+    flask.session.pop('logged_in', None)
+    flask.session.pop('credentials', None)
     flask.flash('You have logged out')
-    return flask.redirect(flask.url_for('show_dashboard'))
+    return flask.redirect(flask.url_for('login'))
 
 
 @app.route('/add_team', methods=['POST'])
