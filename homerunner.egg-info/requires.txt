@@ -1,3 +1,5 @@
 flask
 google_auth_oauthlib
 pyopenssl
+bs4
+google-api-python-client

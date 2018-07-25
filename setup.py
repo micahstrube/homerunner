@@ -7,6 +7,8 @@ setup(
     install_requires=[
         'flask',
         'google_auth_oauthlib',
-        'pyopenssl'
+        'pyopenssl',
+        'bs4',
+        'google-api-python-client',
     ],
 )
