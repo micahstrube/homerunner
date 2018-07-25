@@ -31,7 +31,6 @@ def show_dashboard():
     for team in ranked_teams:
         cur = db.execute('select SUM(home_runs) from players where team_id = ?', [team['id']])
         score = cur.fetchone()[0]
-        print("Score: {score}".format(score=score))
         db.execute('update teams set score = ? where id = ?', [score, team['id']])
         db.commit()
 
